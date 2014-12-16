@@ -1,0 +1,6 @@
+I2C 6050:
+SCL (tim) RB8
+SDA (xam) RB9
+UART PL2030:
+trang RB6
+xanh RB7
