@@ -37,3 +37,4 @@
 .\out\main.o: C:\Keil\ARM\ARMCC\bin\..\include\stdio.h
 .\out\main.o: USER\MPU6050.h
 .\out\main.o: C:\Keil\ARM\ARMCC\bin\..\include\stdbool.h
+.\out\main.o: C:\Keil\ARM\ARMCC\bin\..\include\math.h

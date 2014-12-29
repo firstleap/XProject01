@@ -1,9 +1,12 @@
 #include <stm32f4xx.h>
  #include <stdio.h>
 #include "MPU6050.h"
+#include <math.h>
 USART_InitTypeDef USART_InitStructure;
 GPIO_InitTypeDef GPIO_InitStructure;
 int16_t MPU6050data[7]; 
+double accex=0, accey=0, accez=0, gocx=0, gocy=0, gocz=0,n=0;
+double Offset[7];
 void USART_Configuration(unsigned int BaudRate);
 void SendUSART(USART_TypeDef* USARTx,uint16_t ch);
 int GetUSART(USART_TypeDef* USARTx);
@@ -11,6 +14,9 @@ void send_data(USART_TypeDef* USARTx,unsigned char* ch);
 void I2C_Configuration(void);
 void Init(void);
 void Delay(void);
+ void Delay_Systic(uint32_t uMs);
+ 
+ uint32_t uCount;
  
  #ifdef __GNUC__
   /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
@@ -18,18 +24,42 @@ void Delay(void);
   #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
   #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-  #define GETCHAR_PROTOTYPE int fgetc(FILE *f)
+  #define GETCHAR_PROTOTYPE int fgetc(FILE *f) 
 #endif /* __GNUC__ */
 	
 int main(void) {
+	uint16_t i,j;
+	
+	double gocax=0,gocay=0, gocgx=0, gocgy=0, gocgz=0, alpha=0.92;
     Init();
-	  USART_Configuration(38400);	
-		
+	  USART_Configuration(500000);	
+
+	
+
+
 		while (1)
 		{
+			if(uCount>=5000)
+			{
+			uCount=0;
 			MPU6050_GetRawAccelTempGyro(MPU6050data);
-			Delay();
-			printf("TTT: %d %d %d %d %d %d %d\r", MPU6050data[0], MPU6050data[1], MPU6050data[2], MPU6050data[3], MPU6050data[4], MPU6050data[5], MPU6050data[6]);
+			gocax= (double)atan((double)MPU6050data[1]/(double)(sqrt((double)MPU6050data[0]*(double)MPU6050data[0]+(double)MPU6050data[2]*(double)MPU6050data[2])));
+			gocay= (double)atan((double)MPU6050data[0]/(double)sqrt((double)MPU6050data[1]*(double)MPU6050data[1]+(double)MPU6050data[2]*(double)MPU6050data[2]));
+			//gocax= atan(60/2.4);
+			//printf("%d     %d\r", MPU6050data[5], MPU6050data[4]);
+				//printf("%f     %f\r", gocgx,gocgy);
+			printf("IMU#gx%f#gy%f#ax%f#ay%f\n\r",gocgx, gocgy,gocax,gocay);
+			//printf("TTT: %6.f %6.f %6.f %6.f %6.f %6.f\r", Offset[1],Offset[2],Offset[3],Offset[4],Offset[5], Offset[6]);
+			//printf("TTT: %f %f %f %f %f %f \r", MPU6050data[1]-accex, MPU6050data[2]-accey, MPU6050data[3]-accez, MPU6050data[4]-gocx, MPU6050data[5]-gocy, MPU6050data[6]-gocz);
+			//printf("time: %d\r", uCount);
+			gocgx= alpha*(gocgx+(double)MPU6050data[4]/6553) + (1-alpha)*gocax*180/3.14;
+			gocgy= alpha*(gocgy+(double)MPU6050data[5]/6553) + (1-alpha)*gocay*180/3.14;
+			//gocgx+= (double)MPU6050data[4]/6553;
+			//gocgy+= (double)MPU6050data[5]/6553;
+			gocgz+= (double)MPU6050data[6]/6553;
+			
+			}
+			
 		}
  
     while(1) {
@@ -56,7 +86,10 @@ void Init(void) {
     gpioInit.GPIO_PuPd=GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOD, &gpioInit);
 		I2C_Configuration();  
-		MPU6050_Initialize();
+		MPU6050_Initialize(Offset, 1000);
+		//cau hinh systick
+	SysTick_Config(SystemCoreClock/1000000);
+	//cau hinh 1ms ngat 1 lan
 }
  
 void I2C_Configuration(void)
@@ -159,4 +192,7 @@ void Delay(void) {
  
     }
 }
-
+void Delay_Systic(uint32_t uMs) {
+	uCount=uMs;
+	while(uCount);
+}

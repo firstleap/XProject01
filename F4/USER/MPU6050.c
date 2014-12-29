@@ -13,12 +13,35 @@
  * the clock source to use the X Gyro for reference, which is slightly better than
  * the default internal clock source.
  */
-void MPU6050_Initialize() 
+ 
+ // add offset value
+double OfS[7];
+void MPU6050_Initialize(double* Offset, u16 loop) 
 {
+	  uint32_t i, j;
+		u8 dataR[14];
+		
     MPU6050_SetClockSource(MPU6050_CLOCK_PLL_XGYRO);
     MPU6050_SetFullScaleGyroRange(MPU6050_GYRO_FS_1000);
-    MPU6050_SetFullScaleAccelRange(MPU6050_ACCEL_FS_16);
+    MPU6050_SetFullScaleAccelRange(MPU6050_ACCEL_FS_2);
     MPU6050_SetSleepModeStatus(DISABLE); 
+		//add counting offset
+ 
+		for(i=0;i<7;i++) Offset[i] = 0;
+		for(j=0; j<loop;j++)
+	  {
+			MPU6050_I2C_BufferRead(MPU6050_DEFAULT_ADDRESS, dataR, MPU6050_RA_ACCEL_XOUT_H, 14); 
+			for(i=0;i<7;i++) Offset[i]+= (s16)((dataR[i*2]<<8)|dataR[i*2+1]);
+		}
+		for(i=0;i<7;i++) 
+		{
+			Offset[i] /= loop;
+			OfS[i] = Offset[i];
+		}
+		
+		//default offset z is 1g 
+		Offset[2] -= 8192*2;
+		OfS[2] = Offset[2];
 }
 
 /** Verify the I2C connection.
@@ -197,8 +220,10 @@ void MPU6050_GetRawAccelTempGyro(s16* AccelGyro)
     MPU6050_I2C_BufferRead(MPU6050_DEFAULT_ADDRESS, dataR, MPU6050_RA_ACCEL_XOUT_H, 14);
 
     for(i=0;i<7;i++) 
+	{
     AccelGyro[i]=(dataR[i*2]<<8)|dataR[i*2+1];   
-
+		AccelGyro[i] -= (s16) OfS[i];
+	}
 }
 
 /** Write multiple bits in an 8-bit device register.
